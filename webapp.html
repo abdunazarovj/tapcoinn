@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>TapCoin</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+body {
+    margin: 0;
+    background: #0e0e0e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+#coin {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, gold, orange);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+<div id="coin">🪙 TAP</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+
+document.getElementById("coin").onclick = () => {
+    tg.sendData("tap");
+};
+</script>
+</body>
+</html>
