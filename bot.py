@@ -39,7 +39,7 @@ async def start(message: types.Message):
         [
             InlineKeyboardButton(
                 text="🪙 TapCoin ochish",
-                web_app=WebAppInfo(url="https://semizqurt.netlify.app/")
+                web_app=WebAppInfo(url="https://tapcoinn.netlify.app/")
             )
         ]
     ])
