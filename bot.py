@@ -24,9 +24,9 @@ CREATE TABLE IF NOT EXISTS users (
 db.commit()
 
 MAX_BALANCE = 100
-COOLDOWN = 1800
+COOLDOWN = 1800  # 30 minut
 
-# START — faqat launch tugma
+# /start → faqat Launch
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
@@ -34,15 +34,16 @@ async def start(message: types.Message):
     sql.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     db.commit()
 
-    sql.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
-    balance = sql.fetchone()[0]
+    sql.execute("SELECT balance, last_mine, last_daily FROM users WHERE user_id=?", (user_id,))
+    balance, last_mine, last_daily = sql.fetchone()
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
                 text="🚀 Launch TapCoin",
                 web_app=WebAppInfo(
-                    url=f"https://tapcoinn.netlify.app/balance={balance}"
+                    url=f"https://tapcoinn.netlify.app"
+                        f"?balance={balance}&last_mine={last_mine}&last_daily={last_daily}"
                 )
             )
         ]
@@ -50,49 +51,37 @@ async def start(message: types.Message):
 
     await message.answer("TapCoin ilovasini ishga tushirish uchun bosing 👇", reply_markup=kb)
 
-# Daily bonus
-@dp.message(Command("daily"))
-async def daily(message: types.Message):
-    user_id = message.from_user.id
-    now = int(time.time())
-
-    sql.execute("SELECT last_daily FROM users WHERE user_id=?", (user_id,))
-    last = sql.fetchone()[0]
-
-    if now - last < 86400:
-        await message.answer("❌ Bugun bonus oldingiz")
-        return
-
-    sql.execute("UPDATE users SET balance = balance + 10, last_daily=? WHERE user_id=?", (now, user_id))
-    db.commit()
-
-    await message.answer("🎁 +10 TapCoin bonus!")
-
-# Balance
-@dp.message(Command("balance"))
-async def balance_cmd(message: types.Message):
-    user_id = message.from_user.id
-    sql.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
-    bal = sql.fetchone()[0]
-    await message.answer(f"💰 Balansingiz: {bal} TapCoin")
-
-# Tap WebApp'dan keladi
+# WebApp'dan keladigan buyruqlar
 @dp.message(lambda msg: msg.web_app_data)
-async def tap(message: types.Message):
+async def webapp_handler(message: types.Message):
     user_id = message.from_user.id
+    data = message.web_app_data.data
     now = int(time.time())
 
-    sql.execute("SELECT balance, last_mine FROM users WHERE user_id=?", (user_id,))
-    balance, last_mine = sql.fetchone()
+    # TAP
+    if data == "tap":
+        sql.execute("SELECT balance, last_mine FROM users WHERE user_id=?", (user_id,))
+        balance, last_mine = sql.fetchone()
 
-    if balance >= MAX_BALANCE and now - last_mine < COOLDOWN:
-        return
+        if balance >= MAX_BALANCE and now - last_mine < COOLDOWN:
+            return
 
-    if balance >= MAX_BALANCE:
-        balance = 0
+        if balance >= MAX_BALANCE:
+            balance = 0
 
-    sql.execute("UPDATE users SET balance = balance + 1, last_mine=? WHERE user_id=?", (now, user_id))
-    db.commit()
+        sql.execute("UPDATE users SET balance = balance + 1, last_mine=? WHERE user_id=?", (now, user_id))
+        db.commit()
+
+    # DAILY BONUS
+    if data == "daily":
+        sql.execute("SELECT last_daily FROM users WHERE user_id=?", (user_id,))
+        last_daily = sql.fetchone()[0]
+
+        if now - last_daily < 86400:
+            return
+
+        sql.execute("UPDATE users SET balance = balance + 10, last_daily=? WHERE user_id=?", (now, user_id))
+        db.commit()
 
 async def main():
     await dp.start_polling(bot)
