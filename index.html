@@ -6,7 +6,6 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-
 /* Text select va highlight o‘chiriladi */
 * {
     -webkit-user-select: none;
@@ -26,7 +25,6 @@ body {
 }
 
 /* UI */
-
 #topbar{
     display:flex;
     justify-content:space-between;
@@ -121,10 +119,12 @@ body {
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const params = new URLSearchParams(window.location.search);
-let balance = parseInt(params.get("balance")) || 0;
-let lastMine = parseInt(params.get("last_mine")) || 0;
-let lastDaily = parseInt(params.get("last_daily")) || 0;
+// ==============================================
+// JS da balansni boshqarish
+// ==============================================
+let balance = 0;
+let lastMine = 0;
+let lastDaily = 0;
 
 const MAX = 100;
 const COOLDOWN = 1800;
@@ -135,6 +135,7 @@ const content = document.getElementById("content");
 
 balanceBox.innerText = balance + " 🪙";
 
+// ================= Functions =================
 function showMining(){
     content.innerHTML = "<h2>⛏ Mining</h2><p>Tap qilib coin yig‘ing</p>";
 }
@@ -153,7 +154,7 @@ function showBalance(){
 }
 
 function claimDaily(){
-    tg.sendData("daily");
+    tg.sendData("daily");    // Python serverga yuboradi
     balance += 10;
     lastDaily = Math.floor(Date.now()/1000);
     balanceBox.innerText = balance + " 🪙";
@@ -186,6 +187,7 @@ function format(s){
     return m+":"+(sec<10?"0"+sec:sec);
 }
 
+// ================= Coin Click =================
 coin.onclick = ()=>{
     let now = Math.floor(Date.now()/1000);
 
@@ -203,15 +205,16 @@ coin.onclick = ()=>{
     lastMine = now;
     balanceBox.innerText = balance + " 🪙";
     showPlus();
-    tg.sendData("tap");
+    tg.sendData("tap");   // Python serverga yuboradi
 
     if(balance >= MAX){
         startTimer(COOLDOWN);
     }
 };
 
+// ================= Init =================
 showMining();
-</script>
 
+</script>
 </body>
 </html>
