@@ -5,16 +5,14 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
-# ===================== TOKEN =====================
 TOKEN = "8507150924:AAHGqDPJwPNs__ttp4JSgzrTPPrpz3EracI"
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher()  # ✅ Correct
+dp = Dispatcher(bot)
 
-# ===================== DATABASE =====================
+# ===== DATABASE =====
 db = sqlite3.connect("tapcoin.db")
 sql = db.cursor()
-
 sql.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
@@ -25,32 +23,25 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 db.commit()
 
-# ===================== SETTINGS =====================
-MAX = 100        # Coin maksimal miqdori
-COOLDOWN = 1800  # Cooldown, sekund (30 daqiqa)
+MAX = 100
+COOLDOWN = 1800
 
-# ===================== /start COMMAND =====================
+# ===== /start =====
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
-
-    # Add user to database if not exists
     sql.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     db.commit()
 
-    # Inline button → WebApp launch
     kb = InlineKeyboardMarkup(inline_keyboard=[[ 
         InlineKeyboardButton(
             text="🚀 Launch TapCoin",
-            web_app=WebAppInfo(
-                url=f"https://tapcoinn.netlify.app"
-            )
+            web_app=WebAppInfo(url="https://tapcoinn.netlify.app")
         )
     ]])
-
     await message.answer("TapCoin ilovasini ochish uchun bosing 👇", reply_markup=kb)
 
-# ===================== WebApp DATA =====================
+# ===== WebApp data =====
 @dp.message(lambda msg: msg.web_app_data)
 async def webapp(message: types.Message):
     user_id = message.from_user.id
@@ -66,39 +57,35 @@ async def webapp(message: types.Message):
         sql.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
         db.commit()
 
-    # ================= TAP =================
+    # TAP
     if data == "tap":
         if now - last_mine < COOLDOWN:
-            # Cooldown active
-            await message.answer("⏳ Iltimos, biroz kuting...")
             return
-
         if balance >= MAX:
             balance = 0
-
         balance += 1
         last_mine = now
-        sql.execute("UPDATE users SET balance=?, last_mine=? WHERE user_id=?", (balance, last_mine, user_id))
+        sql.execute("UPDATE users SET balance=?, last_mine=? WHERE user_id=?",
+                    (balance, last_mine, user_id))
         db.commit()
         await message.answer(f"{balance},{last_mine},{last_daily}")
 
-    # ================= DAILY =================
-    if data == "daily":
+    # DAILY
+    elif data == "daily":
         if now - last_daily < 86400:
-            await message.answer("⏳ Daily allaqachon olindi")
             return
-
         balance += 10
         last_daily = now
-        sql.execute("UPDATE users SET balance=?, last_daily=? WHERE user_id=?", (balance, last_daily, user_id))
+        sql.execute("UPDATE users SET balance=?, last_daily=? WHERE user_id=?",
+                    (balance, last_daily, user_id))
         db.commit()
         await message.answer(f"{balance},{last_mine},{last_daily}")
 
-    # ================= GET BALANCE =================
-    if data == "get_balance":
+    # GET BALANCE
+    elif data == "get_balance":
         await message.answer(f"{balance},{last_mine},{last_daily}")
 
-# ===================== MAIN =====================
+# ===== MAIN =====
 async def main():
     print("Bot ishga tushdi...")
     await dp.start_polling(bot)

@@ -51,97 +51,57 @@ const balanceBox = document.getElementById("balanceBox");
 const coin = document.getElementById("coin");
 const content = document.getElementById("content");
 
-// ================= Fetch balance from bot =================
-function fetchBalance(){
-    tg.sendData("get_balance");
+// ============ Functions ============
+function showMining(){ content.innerHTML="<h2>⛏ Mining</h2><p>Tap qilib coin yig‘ing</p>"; }
+function showDaily(){
+    let now=Math.floor(Date.now()/1000);
+    if(now-lastDaily<86400){
+        content.innerHTML="<h2>🎁 Daily</h2><p>Bugun allaqachon oldingiz</p>";
+    }else{
+        content.innerHTML=`<h2>🎁 Daily Bonus</h2><button onclick="claimDaily()">Claim +10</button>`;
+    }
+}
+function showBalance(){ content.innerHTML=`<h2>💰 Balance</h2><h1>${balance} TapCoin</h1>`; }
+function claimDaily(){
+    tg.sendData("daily");
+    balance+=10;
+    lastDaily=Math.floor(Date.now()/1000);
+    balanceBox.innerText=balance+" 🪙";
+    showDaily();
+}
+function showPlus(){ let p=document.createElement("div"); p.className="plus"; p.innerText="+1"; document.body.appendChild(p); setTimeout(()=>p.remove(),1000);}
+function startTimer(sec){ let t=sec; let timer=setInterval(()=>{ coin.innerText=format(t); t--; if(t<0){ clearInterval(timer); coin.innerText="🪙"; } },1000);}
+function format(s){ let m=Math.floor(s/60); let sec=s%60; return m+":"+(sec<10?"0"+sec:sec);}
+
+// ============ Coin Click ============
+coin.onclick=()=>{
+    let now=Math.floor(Date.now()/1000);
+    if(balance>=MAX){ let left=COOLDOWN-(now-lastMine); if(left>0){ startTimer(left); return; } else{ balance=0; } }
+    balance++;
+    lastMine=now;
+    balanceBox.innerText=balance+" 🪙";
+    showPlus();
+    tg.sendData("tap");
+    if(balance>=MAX){ startTimer(COOLDOWN); }
 }
 
-// Telegram bot responses
-window.addEventListener("message", function(event){
-    const data = event.data;
+// ============ Fetch balance from bot ============
+function fetchBalance(){ tg.sendData("get_balance"); }
+
+window.addEventListener("message",function(event){
+    const data=event.data;
     if(!data) return;
-    // Expect CSV: balance,lastMine,lastDaily
-    const parts = data.split(",");
-    if(parts.length === 3){
-        balance = parseInt(parts[0]);
-        lastMine = parseInt(parts[1]);
-        lastDaily = parseInt(parts[2]);
-        balanceBox.innerText = balance + " 🪙";
+    const parts=data.split(",");
+    if(parts.length===3){
+        balance=parseInt(parts[0]);
+        lastMine=parseInt(parts[1]);
+        lastDaily=parseInt(parts[2]);
+        balanceBox.innerText=balance+" 🪙";
     }
 });
 
-// ================= Functions =================
-function showMining(){
-    content.innerHTML = "<h2>⛏ Mining</h2><p>Tap qilib coin yig‘ing</p>";
-}
-function showDaily(){
-    let now = Math.floor(Date.now()/1000);
-    if(now - lastDaily < 86400){
-        content.innerHTML = "<h2>🎁 Daily</h2><p>Bugun allaqachon oldingiz</p>";
-    } else {
-        content.innerHTML = `<h2>🎁 Daily Bonus</h2><button onclick="claimDaily()">Claim +10</button>`;
-    }
-}
-function showBalance(){
-    content.innerHTML = `<h2>💰 Balance</h2><h1>${balance} TapCoin</h1>`;
-}
-function claimDaily(){
-    tg.sendData("daily");
-    balance += 10;
-    lastDaily = Math.floor(Date.now()/1000);
-    balanceBox.innerText = balance + " 🪙";
-    showDaily();
-}
-function showPlus(){
-    let p = document.createElement("div");
-    p.className = "plus";
-    p.innerText = "+1";
-    document.body.appendChild(p);
-    setTimeout(()=>p.remove(),1000);
-}
-function startTimer(sec){
-    let t = sec;
-    let timer = setInterval(()=>{
-        coin.innerText = format(t);
-        t--;
-        if(t<0){
-            clearInterval(timer);
-            coin.innerText = "🪙";
-        }
-    },1000);
-}
-function format(s){
-    let m = Math.floor(s/60);
-    let sec = s%60;
-    return m+":"+(sec<10?"0"+sec:sec);
-}
-
-// ================= Coin Click =================
-coin.onclick = ()=>{
-    let now = Math.floor(Date.now()/1000);
-    if(balance >= MAX){
-        let left = COOLDOWN - (now - lastMine);
-        if(left > 0){
-            startTimer(left);
-            return;
-        } else {
-            balance = 0;
-        }
-    }
-    balance++;
-    lastMine = now;
-    balanceBox.innerText = balance + " 🪙";
-    showPlus();
-    tg.sendData("tap");
-    if(balance >= MAX){
-        startTimer(COOLDOWN);
-    }
-};
-
-// ================= Init =================
 showMining();
 fetchBalance();
-
 </script>
 </body>
 </html>
