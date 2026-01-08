@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 TOKEN = "8507150924:AAHGqDPJwPNs__ttp4JSgzrTPPrpz3EracI"
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher(bot)  # ✅ Pass bot here
+dp = Dispatcher()  # ✅ Pass bot here
 
 # ===================== DATABASE =====================
 db = sqlite3.connect("tapcoin.db")
