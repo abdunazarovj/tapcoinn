@@ -5,11 +5,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
+# ===================== TOKEN =====================
 TOKEN = "8507150924:AAHGqDPJwPNs__ttp4JSgzrTPPrpz3EracI"
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(bot)
 
+# ===================== DATABASE =====================
 db = sqlite3.connect("tapcoin.db")
 sql = db.cursor()
 
@@ -23,64 +25,74 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 db.commit()
 
-MAX = 100
-COOLDOWN = 1800
+# ===================== SETTINGS =====================
+MAX = 100        # Coin maksimal miqdori
+COOLDOWN = 1800  # Cooldown, sekund (30 daqiqa)
 
-# /start → faqat Launch
+# ===================== /start COMMAND =====================
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
+
+    # Foydalanuvchini bazaga qo'shish (agar mavjud bo'lmasa)
     sql.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     db.commit()
 
-    sql.execute("SELECT balance, last_mine, last_daily FROM users WHERE user_id=?", (user_id,))
-    balance, last_mine, last_daily = sql.fetchone()
-
+    # Inline button → WebApp ochish
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(
             text="🚀 Launch TapCoin",
             web_app=WebAppInfo(
-                url=f"https://tapcoinn.netlify.app"
-                    f"?balance={balance}&last_mine={last_mine}&last_daily={last_daily}"
+                url=f"https://tapcoinn.netlify.app/"  # Sizning Netlify WebApp manzilingiz
             )
         )
     ]])
 
     await message.answer("TapCoin ilovasini ochish uchun bosing 👇", reply_markup=kb)
 
-# WebApp’dan keladigan buyruqlar
+# ===================== WebApp DATA =====================
 @dp.message(lambda msg: msg.web_app_data)
 async def webapp(message: types.Message):
     user_id = message.from_user.id
     data = message.web_app_data.data
     now = int(time.time())
 
-    # TAP
-    if data == "tap":
-        sql.execute("SELECT balance, last_mine FROM users WHERE user_id=?", (user_id,))
-        balance, last_mine = sql.fetchone()
+    # Foydalanuvchi ma'lumotlarini olish
+    sql.execute("SELECT balance, last_mine, last_daily FROM users WHERE user_id=?", (user_id,))
+    row = sql.fetchone()
+    if row:
+        balance, last_mine, last_daily = row
+    else:
+        # Agar foydalanuvchi yo'q bo'lsa, yaratamiz
+        balance = last_mine = last_daily = 0
+        sql.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
+        db.commit()
 
+    # ================= TAP =================
+    if data == "tap":
+        # Agar balance MAX ga yetgan bo'lsa va cooldown tugamagan bo'lsa, hech narsa qilmaymiz
         if balance >= MAX and now - last_mine < COOLDOWN:
             return
-
+        # Agar balance MAX ga yetgan bo'lsa va cooldown tugagan bo'lsa, reset qilamiz
         if balance >= MAX:
             balance = 0
 
-        sql.execute("UPDATE users SET balance = balance + 1, last_mine=? WHERE user_id=?", (now, user_id))
+        # Balansni oshiramiz va last_mine yangilaymiz
+        sql.execute("UPDATE users SET balance=?, last_mine=? WHERE user_id=?", (balance + 1, now, user_id))
         db.commit()
 
-    # DAILY (faqat 1 marta 24 soatda)
+    # ================= DAILY =================
     if data == "daily":
-        sql.execute("SELECT last_daily FROM users WHERE user_id=?", (user_id,))
-        last_daily = sql.fetchone()[0]
-
-        if now - last_daily < 86400:
-            return   # qayta berilmaydi
-
-        sql.execute("UPDATE users SET balance = balance + 10, last_daily=? WHERE user_id=?", (now, user_id))
+        # Foydalanuvchi oxirgi daily olgan vaqtini tekshirish
+        if now - last_daily < 86400:  # 24 soat = 86400 s
+            return
+        # Daily bonusni berish va last_daily yangilash
+        sql.execute("UPDATE users SET balance=balance+10, last_daily=? WHERE user_id=?", (now, user_id))
         db.commit()
 
+# ===================== MAIN =====================
 async def main():
+    print("Bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
