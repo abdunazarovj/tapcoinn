@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 TOKEN = "8507150924:AAHGqDPJwPNs__ttp4JSgzrTPPrpz3EracI"
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher()  # ✅ Pass bot here
+dp = Dispatcher(bot)  # ✅ Correct
 
 # ===================== DATABASE =====================
 db = sqlite3.connect("tapcoin.db")
@@ -34,16 +34,16 @@ COOLDOWN = 1800  # Cooldown, sekund (30 daqiqa)
 async def start(message: types.Message):
     user_id = message.from_user.id
 
-    # Foydalanuvchini bazaga qo'shish (agar mavjud bo'lmasa)
+    # Add user to database if not exists
     sql.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     db.commit()
 
-    # Inline button → WebApp ochish
+    # Inline button → WebApp launch
     kb = InlineKeyboardMarkup(inline_keyboard=[[ 
         InlineKeyboardButton(
             text="🚀 Launch TapCoin",
             web_app=WebAppInfo(
-                url=f"https://tapcoinn.netlify.app"  # Sizning Netlify WebApp manzilingiz
+                url=f"https://tapcoinn.netlify.app"
             )
         )
     ]])
@@ -57,45 +57,46 @@ async def webapp(message: types.Message):
     data = message.web_app_data.data
     now = int(time.time())
 
-    # Foydalanuvchi ma'lumotlarini olish
     sql.execute("SELECT balance, last_mine, last_daily FROM users WHERE user_id=?", (user_id,))
     row = sql.fetchone()
     if row:
         balance, last_mine, last_daily = row
     else:
-        # Agar foydalanuvchi yo'q bo'lsa, yaratamiz
         balance = last_mine = last_daily = 0
         sql.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
         db.commit()
 
     # ================= TAP =================
     if data == "tap":
-        # Agar cooldown tugamagan bo'lsa, hech narsa qilmaymiz
         if now - last_mine < COOLDOWN:
-            await message.answer(f"⏳ Iltimos, {COOLDOWN - (now - last_mine)} sekund kuting...")
+            # Cooldown active
+            await message.answer("⏳ Iltimos, biroz kuting...")
             return
 
-        # Agar balance MAX ga yetgan bo'lsa, reset qilamiz
         if balance >= MAX:
             balance = 0
 
         balance += 1
-        sql.execute("UPDATE users SET balance=?, last_mine=? WHERE user_id=?", (balance, now, user_id))
+        last_mine = now
+        sql.execute("UPDATE users SET balance=?, last_mine=? WHERE user_id=?", (balance, last_mine, user_id))
         db.commit()
-        await message.answer(f"💰 Sizning balansingiz: {balance} 🪙")
+        await message.answer(f"{balance},{last_mine},{last_daily}")
 
     # ================= DAILY =================
     if data == "daily":
-        # Foydalanuvchi oxirgi daily olgan vaqtini tekshirish
-        if now - last_daily < 86400:  # 24 soat = 86400 s
-            remaining = 86400 - (now - last_daily)
-            await message.answer(f"⏳ Daily bonus keyin: {remaining // 3600} soat {(remaining % 3600) // 60} min")
+        if now - last_daily < 86400:
+            await message.answer("⏳ Daily allaqachon olindi")
             return
 
-        # Daily bonusni berish va last_daily yangilash
-        sql.execute("UPDATE users SET balance=balance+10, last_daily=? WHERE user_id=?", (now, user_id))
+        balance += 10
+        last_daily = now
+        sql.execute("UPDATE users SET balance=?, last_daily=? WHERE user_id=?", (balance, last_daily, user_id))
         db.commit()
-        await message.answer(f"🎁 Daily bonus olindi! Sizning balansingiz: {balance + 10} 🪙")
+        await message.answer(f"{balance},{last_mine},{last_daily}")
+
+    # ================= GET BALANCE =================
+    if data == "get_balance":
+        await message.answer(f"{balance},{last_mine},{last_daily}")
 
 # ===================== MAIN =====================
 async def main():

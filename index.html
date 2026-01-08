@@ -4,163 +4,94 @@
 <meta charset="UTF-8">
 <title>TapCoin</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
 <style>
-/* Text select va highlight o‘chiriladi */
-* {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-body {
-    touch-action: manipulation;
-    margin:0;
-    background:linear-gradient(180deg,#0b0b0b,#1c1c1c);
-    color:white;
-    font-family:Arial;
-    height:100vh;
-}
-
-/* UI */
-#topbar{
-    display:flex;
-    justify-content:space-between;
-    padding:15px;
-}
-
-#balanceBox{
-    background:#222;
-    padding:10px 18px;
-    border-radius:20px;
-}
-
-#sections{
-    display:flex;
-    justify-content:center;
-    gap:15px;
-}
-
-.section{
-    background:#222;
-    padding:10px 20px;
-    border-radius:12px;
-    cursor:pointer;
-}
-
-#content{
-    text-align:center;
-    margin-top:15px;
-}
-
-#coinBox{
-    position:absolute;
-    bottom:60px;
-    width:100%;
-    display:flex;
-    justify-content:center;
-}
-
-#coin{
-    width:220px;
-    height:220px;
-    border-radius:50%;
-    background:radial-gradient(circle at 30% 30%,#fff6a0,gold 40%,orange 70%);
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:36px;
-    cursor:pointer;
-    box-shadow:0 0 40px gold;
-    transition:transform 0.1s;
-}
-
-#coin:active{
-    transform:scale(0.9);
-}
-
-.plus{
-    position:absolute;
-    bottom:300px;
-    font-size:28px;
-    color:gold;
-    animation:fly 1s ease-out forwards;
-}
-
-@keyframes fly{
-    from{opacity:1; transform:translateY(0);}
-    to{opacity:0; transform:translateY(-80px);}
-}
+* { user-select:none; -webkit-tap-highlight-color:transparent; }
+body { margin:0; height:100vh; font-family:Arial; background:linear-gradient(180deg,#0b0b0b,#1c1c1c); color:white; touch-action:manipulation; }
+#topbar { display:flex; justify-content:space-between; padding:15px; }
+#balanceBox { background:#222; padding:10px 18px; border-radius:20px; }
+#sections { display:flex; justify-content:center; gap:15px; margin-top:10px; }
+.section { background:#222; padding:10px 20px; border-radius:12px; cursor:pointer; }
+#content { text-align:center; margin-top:15px; }
+#coinBox { position:absolute; bottom:60px; width:100%; display:flex; justify-content:center; }
+#coin { width:220px; height:220px; border-radius:50%; background:radial-gradient(circle at 30% 30%,#fff6a0,gold 40%,orange 70%); display:flex; justify-content:center; align-items:center; font-size:36px; cursor:pointer; box-shadow:0 0 40px gold; transition:transform 0.1s; }
+#coin:active { transform:scale(0.9); }
+.plus { position:absolute; bottom:300px; font-size:28px; color:gold; animation:fly 1s ease-out forwards; }
+@keyframes fly { from{opacity:1; transform:translateY(0);} to{opacity:0; transform:translateY(-80px);} }
 </style>
 </head>
-
 <body>
 
 <div id="topbar">
-    <b>🪙 TapCoin</b>
-    <div id="balanceBox">0 🪙</div>
+  <b>🪙 TapCoin</b>
+  <div id="balanceBox">0 🪙</div>
 </div>
 
 <div id="sections">
-    <div class="section" onclick="showMining()">⛏ Mining</div>
-    <div class="section" onclick="showDaily()">🎁 Daily</div>
-    <div class="section" onclick="showBalance()">💰 Balance</div>
+  <div class="section" onclick="showMining()">⛏ Mining</div>
+  <div class="section" onclick="showDaily()">🎁 Daily</div>
+  <div class="section" onclick="showBalance()">💰 Balance</div>
 </div>
 
 <div id="content"></div>
 
 <div id="coinBox">
-    <div id="coin">🪙</div>
+  <div id="coin">🪙</div>
 </div>
 
 <script>
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// ==============================================
-// JS da balansni boshqarish
-// ==============================================
 let balance = 0;
 let lastMine = 0;
 let lastDaily = 0;
-
 const MAX = 100;
 const COOLDOWN = 1800;
-
 const balanceBox = document.getElementById("balanceBox");
 const coin = document.getElementById("coin");
 const content = document.getElementById("content");
 
-balanceBox.innerText = balance + " 🪙";
+// ================= Fetch balance from bot =================
+function fetchBalance(){
+    tg.sendData("get_balance");
+}
+
+// Telegram bot responses
+window.addEventListener("message", function(event){
+    const data = event.data;
+    if(!data) return;
+    // Expect CSV: balance,lastMine,lastDaily
+    const parts = data.split(",");
+    if(parts.length === 3){
+        balance = parseInt(parts[0]);
+        lastMine = parseInt(parts[1]);
+        lastDaily = parseInt(parts[2]);
+        balanceBox.innerText = balance + " 🪙";
+    }
+});
 
 // ================= Functions =================
 function showMining(){
     content.innerHTML = "<h2>⛏ Mining</h2><p>Tap qilib coin yig‘ing</p>";
 }
-
 function showDaily(){
     let now = Math.floor(Date.now()/1000);
     if(now - lastDaily < 86400){
         content.innerHTML = "<h2>🎁 Daily</h2><p>Bugun allaqachon oldingiz</p>";
-    }else{
+    } else {
         content.innerHTML = `<h2>🎁 Daily Bonus</h2><button onclick="claimDaily()">Claim +10</button>`;
     }
 }
-
 function showBalance(){
     content.innerHTML = `<h2>💰 Balance</h2><h1>${balance} TapCoin</h1>`;
 }
-
 function claimDaily(){
-    tg.sendData("daily");    // Python serverga yuboradi
+    tg.sendData("daily");
     balance += 10;
     lastDaily = Math.floor(Date.now()/1000);
     balanceBox.innerText = balance + " 🪙";
     showDaily();
 }
-
 function showPlus(){
     let p = document.createElement("div");
     p.className = "plus";
@@ -168,7 +99,6 @@ function showPlus(){
     document.body.appendChild(p);
     setTimeout(()=>p.remove(),1000);
 }
-
 function startTimer(sec){
     let t = sec;
     let timer = setInterval(()=>{
@@ -180,7 +110,6 @@ function startTimer(sec){
         }
     },1000);
 }
-
 function format(s){
     let m = Math.floor(s/60);
     let sec = s%60;
@@ -190,23 +119,20 @@ function format(s){
 // ================= Coin Click =================
 coin.onclick = ()=>{
     let now = Math.floor(Date.now()/1000);
-
     if(balance >= MAX){
         let left = COOLDOWN - (now - lastMine);
         if(left > 0){
             startTimer(left);
             return;
-        }else{
+        } else {
             balance = 0;
         }
     }
-
     balance++;
     lastMine = now;
     balanceBox.innerText = balance + " 🪙";
     showPlus();
-    tg.sendData("tap");   // Python serverga yuboradi
-
+    tg.sendData("tap");
     if(balance >= MAX){
         startTimer(COOLDOWN);
     }
@@ -214,6 +140,7 @@ coin.onclick = ()=>{
 
 // ================= Init =================
 showMining();
+fetchBalance();
 
 </script>
 </body>
